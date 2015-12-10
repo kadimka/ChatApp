@@ -1,5 +1,14 @@
 package Client;
+/*
+ * To change this template, choose Tools : Templates
+ * and open the template in the editor.
+ */
 
+/*
+ * Chat.java
+ *
+ * Created on Apr 14, 2011, 10:23:37 AM
+ */
 
 
 import java.net.*;
@@ -7,16 +16,16 @@ import java.io.*;
 import java.util.*;
 
 public class ChatMain extends javax.swing.JFrame {
-    String username, serverIP = "127.0.0.1";
+    String username, serverIP;
     int Port = 5000;
     Socket sock;
     BufferedReader reader;
     PrintWriter writer;
     ArrayList<String> userList = new ArrayList();
     Boolean isConnected = false;
-    
-    
 
+
+    
     public ChatMain() {
         initComponents();
     }
@@ -24,7 +33,41 @@ public class ChatMain extends javax.swing.JFrame {
     public class IncomingReader implements Runnable{
 
         public void run() {
-            
+            String[] data;
+            String stream, done = "Done", connect = "Connect", disconnect = "Disconnect", chat = "Chat";
+
+            try {
+                while ((stream = reader.readLine()) != null) {
+
+                    data = stream.split(":");
+
+                     if (data[2].equals(chat)) {
+
+                        chatTextArea.append(data[0] + ": " + data[1] + "\n");
+                        chatTextArea.setCaretPosition(chatTextArea.getDocument().getLength());
+
+                    } else if (data[2].equals(connect)){
+
+                        chatTextArea.removeAll();
+                        userAdd(data[0]);
+
+                    } else if (data[2].equals(disconnect)) {
+
+
+                        userRemove(data[0]);
+
+                    } else if (data[2].equals(done)) {
+
+
+                        usersList.setText("");
+                        writeUsers();
+                        userList.clear();
+
+                    }
+                 
+                }
+           }catch(Exception ex) {
+           }
         }
     }
 
@@ -32,7 +75,7 @@ public class ChatMain extends javax.swing.JFrame {
          Thread IncomingReader = new Thread(new IncomingReader());
          IncomingReader.start();
     }
-   
+
     public void userAdd(String data) {
          userList.add(data);
 
@@ -43,7 +86,43 @@ public class ChatMain extends javax.swing.JFrame {
 
      }
 
+    public void writeUsers() {
+         String[] tempList = new String[(userList.size())];
+         userList.toArray(tempList);
+         for (String token:tempList) {
 
+             usersList.append(token + "\n");
+
+         }
+
+     }
+
+    public void sendDisconnect() {
+
+       String bye = (username + ": :Disconnect");
+        try{
+            writer.println(bye); // Sends server the disconnect signal.
+            writer.flush(); // flushes the buffer
+        } catch (Exception e) {
+            chatTextArea.append("Could not send Disconnect message.\n");
+        }
+
+      }
+
+    public void Disconnect() {
+
+        try {
+               chatTextArea.append("Disconnected.\n");
+               sock.close();
+        } catch(Exception ex) {
+               chatTextArea.append("Failed to disconnect. \n");
+        }
+        isConnected = false;
+        usernameField.setEditable(true);
+        usersList.setText("");
+
+      }
+                          
     private void initComponents() {
 
         jScrollPane1 = new javax.swing.JScrollPane();
@@ -60,16 +139,15 @@ public class ChatMain extends javax.swing.JFrame {
         jLabel2 = new javax.swing.JLabel();
         jLabel3 = new javax.swing.JLabel();
         inputIpArea = new javax.swing.JTextField();
+    
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        setTitle("Chat Client 1.1");
+        setTitle("Chat Client 0.1");
 
         inputTextArea.setColumns(20);
         inputTextArea.setLineWrap(true);
         inputTextArea.setRows(5);
         jScrollPane1.setViewportView(inputTextArea);
-        
-     
 
         chatTextArea.setColumns(35);
         chatTextArea.setEditable(false);
@@ -82,11 +160,32 @@ public class ChatMain extends javax.swing.JFrame {
         jLabel3.setText("Ip:");
 
 
+        usernameField.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                usernameFieldActionPerformed(evt);
+            }
+        });
+
         connectButton.setText("Connect");
+        connectButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                connectButtonActionPerformed(evt);
+            }
+        });
 
         disconnectButton.setText("Disconnect");
+        disconnectButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                disconnectButtonActionPerformed(evt);
+            }
+        });
 
         sendButton.setText("Send");
+        sendButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                sendButtonActionPerformed(evt);
+            }
+        });
 
         usersList.setEditable(false);
         usersList.setColumns(20);
@@ -94,9 +193,10 @@ public class ChatMain extends javax.swing.JFrame {
         jScrollPane3.setViewportView(usersList);
 
         jLabel2.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-        jLabel2.setText("Online Users");
+        jLabel2.setText("Online Users in chanel");
 
         
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -153,7 +253,72 @@ public class ChatMain extends javax.swing.JFrame {
         );
 
         pack();
-    }                     
+    }// </editor-fold>                        
+
+    private void connectButtonActionPerformed(java.awt.event.ActionEvent evt) {                                              
+        
+            if (isConnected == false) {
+            username = usernameField.getText();
+            serverIP = inputIpArea.getText();
+            usernameField.setEditable(false);
+            inputIpArea.setEditable(false);
+
+
+
+            try {
+                sock = new Socket(serverIP, Port);
+                InputStreamReader streamreader = new InputStreamReader(sock.getInputStream());
+                reader = new BufferedReader(streamreader);
+                writer = new PrintWriter(sock.getOutputStream());
+                writer.println(username + ":has connected.:Connect"); // Displays to everyone that user connected.
+                writer.flush(); // flushes the buffer
+                isConnected = true; // Used to see if the client is connected.
+            } catch (Exception ex) {
+                chatTextArea.append("Cannot Connect! Try Again. \n");
+                usernameField.setEditable(true);
+            }
+            ListenThread();
+        } else if (isConnected == true) {
+            chatTextArea.append("You are already connected. \n");
+        }
+    }                                             
+
+    private void disconnectButtonActionPerformed(java.awt.event.ActionEvent evt) {                                                 
+        // TODO add your handling code here:
+        sendDisconnect();
+        Disconnect();
+    }                                                
+
+    private void sendButtonActionPerformed(java.awt.event.ActionEvent evt) {                                           
+        // TODO add your handling code here:
+        String nothing = "";
+        if ((inputTextArea.getText()).equals(nothing)) {
+            inputTextArea.setText("");
+            inputTextArea.requestFocus();
+        } else {
+            try {
+               writer.println(username + ":" + inputTextArea.getText() + ":" + "Chat");
+               writer.flush(); 
+            } catch (Exception ex) {
+                chatTextArea.append("Message was not sent. \n");
+            }
+            inputTextArea.setText("");
+            inputTextArea.requestFocus();
+        }
+
+        inputTextArea.setText("");
+        inputTextArea.requestFocus();
+    }                                          
+
+    private void jMenuItem1ActionPerformed(java.awt.event.ActionEvent evt) {                                           
+ 
+        setVisible(true);
+    }                                          
+
+    private void usernameFieldActionPerformed(java.awt.event.ActionEvent evt) {                                              
+        
+    }                                             
+
     public static void main(String args[]) {
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
@@ -162,21 +327,19 @@ public class ChatMain extends javax.swing.JFrame {
         });
     }
 
-                       
-    private javax.swing.JTextArea chatTextArea;
+    private javax.swing.JLabel jLabel3;
     private javax.swing.JTextField inputIpArea;
+    private javax.swing.JTextArea chatTextArea;
     private javax.swing.JButton connectButton;
     private javax.swing.JButton disconnectButton;
     private javax.swing.JTextArea inputTextArea;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
-    private javax.swing.JLabel jLabel3;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
     private javax.swing.JButton sendButton;
     private javax.swing.JTextField usernameField;
     private javax.swing.JTextArea usersList;
-                   
 
 }
